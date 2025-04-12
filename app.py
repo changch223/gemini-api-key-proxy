@@ -32,7 +32,7 @@ def proxy_to_gemini():
     # 4. 組成 API URL
     GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
 
-     # 5. 把剩下的內容直接傳送（符合官方標準）
+    # 5. 把剩下的內容直接傳送（符合官方標準）
     payload = {}
     if "contents" in data:
         payload["contents"] = data["contents"]
@@ -45,20 +45,46 @@ def proxy_to_gemini():
     if "safetySettings" in data:
         payload["safetySettings"] = data["safetySettings"]
 
-    
+    # 6. 🔥 加上 response_schema
+    if "generationConfig" not in payload:
+        payload["generationConfig"] = {}
+
+    # 加上 response_mime_type 和 response_schema
+    payload["generationConfig"]["response_mime_type"] = "application/json"
+    payload["generationConfig"]["response_schema"] = {
+        "type": "object",
+        "properties": {
+            "comprehensive_emotional_index": { "type": "integer" },
+            "confidence_score": { "type": "integer" },
+            "rating_reason": { "type": "string" },
+            "supplement_suggestion": { "type": "string" }
+        },
+        "required": [
+            "comprehensive_emotional_index",
+            "confidence_score",
+            "rating_reason",
+            "supplement_suggestion"
+        ],
+        "propertyOrdering": [
+            "comprehensive_emotional_index",
+            "confidence_score",
+            "rating_reason",
+            "supplement_suggestion"
+        ]
+    }
+
     headers = {
         "Content-Type": "application/json"
     }
-    
+
     try:
         response = requests.post(GEMINI_API_URL, headers=headers, json=payload)
     except requests.RequestException as e:
         # 如果無法連到 Gemini（網路錯、timeout等）
         return jsonify({"error": f"Failed to call Gemini API: {str(e)}"}), 502  # 502 Bad Gateway
 
-    # 4. 判斷 Gemini 回應是否成功
+    # 7. 判斷 Gemini 回應是否成功
     if response.status_code != 200:
-        # ❗這裡加上你要的 try/except
         try:
             return jsonify({
                 "error": f"Gemini API error: {response.status_code}",
@@ -70,7 +96,7 @@ def proxy_to_gemini():
                 "detail": response.text
             }), response.status_code
 
-    # 5. 正常回傳 Gemini 回來的結果
+    # 8. 正常回傳 Gemini 回來的結果
     try:
         result = response.json()
     except Exception:
