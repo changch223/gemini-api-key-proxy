@@ -32,12 +32,26 @@ def proxy_to_gemini():
     # 4. 組成 API URL
     GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
 
+     # 5. 把剩下的內容直接傳送（符合官方標準）
+    payload = {}
+    if "contents" in data:
+        payload["contents"] = data["contents"]
+    if "generationConfig" in data:
+        payload["generationConfig"] = data["generationConfig"]
+    if "systemInstruction" in data:
+        payload["systemInstruction"] = data["systemInstruction"]
+    if "tools" in data:
+        payload["tools"] = data["tools"]
+    if "safetySettings" in data:
+        payload["safetySettings"] = data["safetySettings"]
+
+    
     headers = {
         "Content-Type": "application/json"
     }
     
     try:
-        response = requests.post(GEMINI_API_URL, headers=headers, json=data)
+        response = requests.post(GEMINI_API_URL, headers=headers, json=payload)
     except requests.RequestException as e:
         # 如果無法連到 Gemini（網路錯、timeout等）
         return jsonify({"error": f"Failed to call Gemini API: {str(e)}"}), 502  # 502 Bad Gateway
