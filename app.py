@@ -10,9 +10,6 @@ MY_SECRET_TOKEN = os.getenv("SECRET_TOKEN")
 # 這是你的 Gemini API Key
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Gemini API Endpoint
-GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
-
 @app.route("/", methods=["POST"])
 def proxy_to_gemini():
     # 1. 驗證 App 傳來的 Secret Token
@@ -28,7 +25,13 @@ def proxy_to_gemini():
     except Exception as e:
         return jsonify({"error": f"Bad Request: {str(e)}"}), 400
 
-    # 3. 發送請求到 Gemini API
+    # 3. 從 App JSON 裡讀取 model_name
+    model_name = data.get("model_name", "gemini-2.0-flash")  # 預設用 gemini-2.0-flash
+    data.pop("model_name", None)  # 刪掉 model_name，避免送給 Gemini API 出錯
+
+    # 4. 組成 API URL
+    GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+
     headers = {
         "Content-Type": "application/json"
     }
