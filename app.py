@@ -11,7 +11,7 @@ MY_SECRET_TOKEN = os.getenv("SECRET_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Gemini API Endpoint
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
 
 @app.route("/", methods=["POST"])
 def proxy_to_gemini():
@@ -27,27 +27,39 @@ def proxy_to_gemini():
             raise ValueError("Missing JSON payload")
     except Exception as e:
         return jsonify({"error": f"Bad Request: {str(e)}"}), 400
-    
+
     # 3. 發送請求到 Gemini API
     headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {GEMINI_API_KEY}"
+        "Content-Type": "application/json"
     }
+    
     try:
         response = requests.post(GEMINI_API_URL, headers=headers, json=data)
-        response.raise_for_status()  # 若狀態不是 200 會拋出例外
     except requests.RequestException as e:
-        # 可記錄 log，並回傳錯誤訊息
-        return jsonify({"error": f"Gemini API error: {str(e)}"}), 502  # 502 Bad Gateway
+        # 如果無法連到 Gemini（網路錯、timeout等）
+        return jsonify({"error": f"Failed to call Gemini API: {str(e)}"}), 502  # 502 Bad Gateway
 
-    # 4. 回傳 Gemini API 的結果
+    # 4. 判斷 Gemini 回應是否成功
+    if response.status_code != 200:
+        # ❗這裡加上你要的 try/except
+        try:
+            return jsonify({
+                "error": f"Gemini API error: {response.status_code}",
+                "detail": response.json()
+            }), response.status_code
+        except Exception:
+            return jsonify({
+                "error": f"Gemini API error: {response.status_code}",
+                "detail": response.text
+            }), response.status_code
+
+    # 5. 正常回傳 Gemini 回來的結果
     try:
         result = response.json()
-    except Exception as e:
-        return jsonify({"error": "Failed to parse Gemini response"}), 500
+    except Exception:
+        return jsonify({"error": "Failed to parse Gemini API response"}), 500
 
     return jsonify(result)
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
