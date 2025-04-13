@@ -52,26 +52,27 @@ def proxy_to_gemini():
     # 加上 response_mime_type 和 response_schema
     payload["generationConfig"]["response_mime_type"] = "application/json"
     payload["generationConfig"]["response_schema"] = {
-        "type": "object",
-        "properties": {
-            "comprehensive_emotional_index": { "type": "integer" },
-            "confidence_score": { "type": "integer" },
-            "rating_reason": { "type": "string" },
-            "supplement_suggestion": { "type": "string" }
-        },
-        "required": [
-            "comprehensive_emotional_index",
-            "confidence_score",
-            "rating_reason",
-            "supplement_suggestion"
-        ],
-        "propertyOrdering": [
-            "comprehensive_emotional_index",
-            "confidence_score",
-            "rating_reason",
-            "supplement_suggestion"
-        ]
-    }
+    "type": "object",
+    "properties": {
+        "couple_possibility": {"type": "integer"},
+        "judgment_reason": {"type": "string"},
+        "improvement_suggestion": {"type": "string"},
+        "encouragement_message": {"type": "string"}
+    },
+    "required": [
+        "couple_possibility",
+        "judgment_reason",
+        "improvement_suggestion",
+        "encouragement_message"
+    ],
+    "propertyOrdering": [
+        "couple_possibility",
+        "judgment_reason",
+        "improvement_suggestion",
+        "encouragement_message"
+    ]
+}
+
 
     headers = {
         "Content-Type": "application/json"
