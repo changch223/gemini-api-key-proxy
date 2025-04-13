@@ -38,8 +38,8 @@ def proxy_to_gemini():
         payload["contents"] = data["contents"]
     if "generationConfig" in data:
         payload["generationConfig"] = data["generationConfig"]
-    if "systemInstruction" in data:
-        payload["systemInstruction"] = data["systemInstruction"]
+    if "system_instruction" in data:
+        payload["system_instruction"] = data["system_instruction"]
     if "tools" in data:
         payload["tools"] = data["tools"]
     if "safetySettings" in data:
