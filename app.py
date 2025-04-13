@@ -32,10 +32,24 @@ def proxy_to_gemini():
     # 4. 組成 API URL
     GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
 
-    # 5. 把剩下的內容直接傳送（符合官方標準）
+    # 5. 處理傳入的其他內容
     payload = {}
+    # 將所有 contents 項目合併成一個物件，符合 REST 例子：
     if "contents" in data:
-        payload["contents"] = data["contents"]
+        merged_parts = []
+        # data["contents"] 預期是一個陣列，每個內容物件中都應有 "parts"
+        for content in data["contents"]:
+            if "parts" in content:
+                # 將每個內容的 parts 合併至 merged_parts
+                merged_parts.extend(content["parts"])
+        # 最後建立單一的 content 物件，包含所有 merged_parts
+        payload["contents"] = [{
+            "parts": merged_parts
+        }]
+    
+    # 若 client 端未提供 contents，則不做處理
+
+    # 以下其他欄位直接複製過來
     if "generationConfig" in data:
         payload["generationConfig"] = data["generationConfig"]
     if "system_instruction" in data:
@@ -49,30 +63,29 @@ def proxy_to_gemini():
     if "generationConfig" not in payload:
         payload["generationConfig"] = {}
 
-    # 加上 response_mime_type 和 response_schema
+    # 加上 response_mime_type 和 response_schema（此處以新 schema 為例）
     payload["generationConfig"]["response_mime_type"] = "application/json"
     payload["generationConfig"]["response_schema"] = {
-    "type": "object",
-    "properties": {
-        "couple_possibility": {"type": "integer"},
-        "judgment_reason": {"type": "string"},
-        "improvement_suggestion": {"type": "string"},
-        "encouragement_message": {"type": "string"}
-    },
-    "required": [
-        "couple_possibility",
-        "judgment_reason",
-        "improvement_suggestion",
-        "encouragement_message"
-    ],
-    "propertyOrdering": [
-        "couple_possibility",
-        "judgment_reason",
-        "improvement_suggestion",
-        "encouragement_message"
-    ]
-}
-
+        "type": "object",
+        "properties": {
+            "couple_possibility": {"type": "integer"},
+            "judgment_reason": {"type": "string"},
+            "improvement_suggestion": {"type": "string"},
+            "encouragement_message": {"type": "string"}
+        },
+        "required": [
+            "couple_possibility",
+            "judgment_reason",
+            "improvement_suggestion",
+            "encouragement_message"
+        ],
+        "propertyOrdering": [
+            "couple_possibility",
+            "judgment_reason",
+            "improvement_suggestion",
+            "encouragement_message"
+        ]
+    }
 
     headers = {
         "Content-Type": "application/json"
