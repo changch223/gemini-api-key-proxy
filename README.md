@@ -56,6 +56,39 @@ Content-Type: application/json
 
 ---
 
+## 📤 Output Format (Schema Enforced)
+
+This proxy injects a schema for relationship AI use cases.  
+Example response:
+
+```json
+{
+  "couple_possibility": 85,
+  "judgment_reason": "You both communicate openly and with humor.",
+  "improvement_suggestion": "Try spending more quality time together.",
+  "encouragement_message": "You're on a good path. Stay positive!"
+}
+```
+
+## 🎯 JSON Schema
+```json
+{
+  "type": "object",
+  "properties": {
+    "couple_possibility": { "type": "integer" },
+    "judgment_reason": { "type": "string" },
+    "improvement_suggestion": { "type": "string" },
+    "encouragement_message": { "type": "string" }
+  },
+  "required": [
+    "couple_possibility",
+    "judgment_reason",
+    "improvement_suggestion",
+    "encouragement_message"
+  ]
+}
+```
+
 ## 📄 License
 
 This project is licensed under the **MIT License**.  
