@@ -19,7 +19,7 @@ Supports custom **response schema**, model selection, and secret token authentic
 ## 🔧 Tech Stack
 
 - 🧪 Python 3 + Flask
-- 🌐 Google Gemini API v1beta
+- 🌐 Google Gemini API 
 - 🔐 Secret token validation (via `Authorization` header)
 - 🧠 Advanced response schema for AI outputs
 
