@@ -24,3 +24,32 @@ Supports custom **response schema**, model selection, and secret token authentic
 - 🧠 Advanced response schema for AI outputs
 
 ---
+## 📦 Endpoint
+
+### `POST /`  
+**Headers**:
+```http
+Authorization: Bearer YOUR_SECRET_TOKEN
+Content-Type: application/json
+```
+
+### 📝 Example Request
+
+```json
+{
+  "model_name": "gemini-2.0-flash",
+  "contents": [
+    {
+      "parts": [
+        { "text": "Are we a good match? Here's our conversation..." }
+      ]
+    }
+  ],
+  "generationConfig": {
+    "temperature": 0.7,
+    "top_p": 1,
+    "top_k": 1,
+    "max_output_tokens": 256
+  }
+}
+```
