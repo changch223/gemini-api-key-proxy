@@ -99,6 +99,4 @@ Feel free to use, modify, and distribute as needed.
 ## 🙋 Author
 
 Developed by **[Chia-Wei Chang](https://github.com/changch223)**  
-💡 Feel free to fork the repo, open issues, or contribute improvements!
-
 If you have questions or collaboration ideas, don’t hesitate to reach out.
