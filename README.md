@@ -37,7 +37,7 @@ Content-Type: application/json
 
 ```json
 {
-  "model_name": "gemini-2.0-flash",
+  "model_name": "gemini-2.5-flash",
   "contents": [
     {
       "parts": [
