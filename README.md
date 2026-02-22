@@ -9,7 +9,7 @@ Supports custom **response schema**, model selection, and secret token authentic
 ## 🚀 Features
 
 - **Protects Gemini API Key** — never expose keys in frontend apps  
-- **Supports model switching** (e.g., `gemini-1.5-pro`, `gemini-2.0-flash`)  
+- **Gemini 2.5 Flash Support** (e.g., `gemini-2.5-flash`)  
 - **Supports response schema** — enables structured JSON output  
 - **Token-based authorization**  
 - Ready for deployment on **Google Cloud Run**, **Render**, etc.
