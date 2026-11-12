@@ -39,6 +39,22 @@ _hits_by_ip = {}
 _hits_global = deque()
 _rate_lock = threading.Lock()
 
+# 通知用のログ。Cloud Logging のログベースのアラートが "PROXY_ALERT" を含む行を拾い、
+# メールで知らせる（設定は Google Cloud 側。宛先はここには書かない）。
+# 攻撃中にログが溢れないよう、同じ種類は ALERT_LOG_INTERVAL 秒に1行だけ出す。
+ALERT_LOG_INTERVAL = 60
+_last_alert = {}
+_alert_lock = threading.Lock()
+
+
+def log_alert(kind, detail):
+    now = time.time()
+    with _alert_lock:
+        if now - _last_alert.get(kind, 0) < ALERT_LOG_INTERVAL:
+            return
+        _last_alert[kind] = now
+    print(f"PROXY_ALERT service=myakuari kind={kind} {detail}", flush=True)
+
 
 def is_authorized():
     auth_header = request.headers.get("Authorization", "")
@@ -59,6 +75,14 @@ def client_ip():
 
 def check_rate_limit(ip):
     """制限内なら None、超えていたら再試行までの秒数を返す。"""
+    retry_after, alert = _check_rate_limit(ip)
+    if alert:
+        log_alert(*alert)
+    return retry_after
+
+
+def _check_rate_limit(ip):
+    """(再試行までの秒数 or None, 通知 (kind, detail) or None) を返す。"""
     now = time.time()
     with _rate_lock:
         while _hits_global and now - _hits_global[0] > DAY_SECONDS:
@@ -68,13 +92,16 @@ def check_rate_limit(ip):
             hits.popleft()
 
         if GLOBAL_DAILY_LIMIT and len(_hits_global) >= GLOBAL_DAILY_LIMIT:
-            return int(DAY_SECONDS - (now - _hits_global[0])) + 1
+            return (int(DAY_SECONDS - (now - _hits_global[0])) + 1,
+                    ("global_day_limit", f"limit={GLOBAL_DAILY_LIMIT} ip={ip}"))
         if RATE_LIMIT_PER_DAY and len(hits) >= RATE_LIMIT_PER_DAY:
-            return int(DAY_SECONDS - (now - hits[0])) + 1
+            return (int(DAY_SECONDS - (now - hits[0])) + 1,
+                    ("ip_day_limit", f"limit={RATE_LIMIT_PER_DAY} ip={ip}"))
         if RATE_LIMIT_PER_10MIN:
             recent = [t for t in hits if now - t <= RATE_LIMIT_WINDOW_SECONDS]
             if len(recent) >= RATE_LIMIT_PER_10MIN:
-                return int(RATE_LIMIT_WINDOW_SECONDS - (now - recent[0])) + 1
+                return (int(RATE_LIMIT_WINDOW_SECONDS - (now - recent[0])) + 1,
+                        ("ip_10min_limit", f"limit={RATE_LIMIT_PER_10MIN} ip={ip}"))
 
         hits.append(now)
         _hits_global.append(now)
@@ -82,7 +109,10 @@ def check_rate_limit(ip):
         if len(_hits_by_ip) > 20000:
             for key in [k for k, v in _hits_by_ip.items() if not v or now - v[-1] > DAY_SECONDS]:
                 del _hits_by_ip[key]
-        return None
+        # 全体の上限の 80% に達したら、止まる前に知らせる
+        if GLOBAL_DAILY_LIMIT and len(_hits_global) == (GLOBAL_DAILY_LIMIT * 4 + 4) // 5:
+            return None, ("global_day_80pct", f"count={len(_hits_global)} limit={GLOBAL_DAILY_LIMIT}")
+        return None, None
 
 # モデルはサーバー側で決める（先頭から順に試し、提供終了(404)なら次へフォールバック）。
 # 配布済みアプリが古い model_name を送ってきても壊れないよう、クライアント指定は使わない。
@@ -220,16 +250,19 @@ def proxy_to_gemini():
         try:
             response = requests.post(gemini_api_url, headers=headers, json=payload, timeout=60)
         except requests.RequestException as e:
+            log_alert("gemini_error", f"status={type(e).__name__}")
             return jsonify({"error": f"Failed to call Gemini API: {type(e).__name__}"}), 502
         # 404 = モデル提供終了。次の候補で再試行する
         if response.status_code != 404:
             break
         app.logger.warning("Gemini model unavailable: %s", model_name)
+        log_alert("model_unavailable", f"model={model_name}")
 
     if response is None:
         return jsonify({"error": "No Gemini model configured"}), 500
 
     if response.status_code != 200:
+        log_alert("gemini_error", f"status={response.status_code}")
         try:
             return jsonify({
                 "error": f"Gemini API error: {response.status_code}",
