@@ -7,6 +7,14 @@ app = Flask(__name__)
 MY_SECRET_TOKEN = os.getenv("SECRET_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+# モデルはサーバー側で決める（先頭から順に試し、提供終了(404)なら次へフォールバック）。
+# 配布済みアプリが古い model_name を送ってきても壊れないよう、クライアント指定は使わない。
+GEMINI_MODELS = [
+    m.strip()
+    for m in os.getenv("GEMINI_MODELS", "gemini-2.5-flash,gemini-3.8-flash").split(",")
+    if m.strip()
+]
+
 def normalize_system_instruction(si):
     """
     iOS 側が string を送ってくる可能性もあるので、
@@ -36,14 +44,8 @@ def proxy_to_gemini():
     except Exception as e:
         return jsonify({"error": f"Bad Request: {str(e)}"}), 400
 
-    # 3) model_name default を 2.5 にする（★ここだけでアップグレード目的は達成）
-    model_name = data.get("model_name", "gemini-2.5-flash")  # CHANGE
+    # 3) クライアントの model_name は無視する（提供終了モデルを固定で送る旧バージョン対策）
     data.pop("model_name", None)
-
-    GEMINI_API_URL = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{model_name}:generateContent?key={GEMINI_API_KEY}"
-    )
 
     payload = {}
 
@@ -110,10 +112,23 @@ def proxy_to_gemini():
 
     headers = {"Content-Type": "application/json"}
 
-    try:
-        response = requests.post(GEMINI_API_URL, headers=headers, json=payload, timeout=60)
-    except requests.RequestException as e:
-        return jsonify({"error": f"Failed to call Gemini API: {str(e)}"}), 502
+    response = None
+    for model_name in GEMINI_MODELS:
+        gemini_api_url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model_name}:generateContent?key={GEMINI_API_KEY}"
+        )
+        try:
+            response = requests.post(gemini_api_url, headers=headers, json=payload, timeout=60)
+        except requests.RequestException as e:
+            return jsonify({"error": f"Failed to call Gemini API: {type(e).__name__}"}), 502
+        # 404 = モデル提供終了。次の候補で再試行する
+        if response.status_code != 404:
+            break
+        app.logger.warning("Gemini model unavailable: %s", model_name)
+
+    if response is None:
+        return jsonify({"error": "No Gemini model configured"}), 500
 
     if response.status_code != 200:
         try:
